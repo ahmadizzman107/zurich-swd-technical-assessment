@@ -11,6 +11,14 @@ export interface PublicUser {
   avatar: string;
 }
 
+export interface PaginatedUsers {
+  data: PublicUser[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
@@ -70,10 +78,29 @@ export class UsersService {
     return results;
   }
 
-  // The only exposed method that fetches all users, filters them, and returns the filtered list
   async getFilteredUsers(): Promise<PublicUser[]> {
     const allUsers = await this.getAllUsers();
     const filteredUsers = allUsers.filter(this.matchesFilter);
     return filteredUsers.map(this.toPublicUser);
+  }
+
+  async getPaginatedUsers(
+    page: number = 1,
+    limit: number = 6,
+  ): Promise<PaginatedUsers> {
+    const allFilteredUsers = await this.getFilteredUsers();
+
+    const total = allFilteredUsers.length;
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+    const start = (page - 1) * limit;
+    const data = allFilteredUsers.slice(start, start + limit);
+
+    return {
+      data,
+      page,
+      limit,
+      total,
+      totalPages,
+    };
   }
 }
