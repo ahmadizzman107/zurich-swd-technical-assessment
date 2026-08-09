@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ReqresResponse, ReqresUser } from './interfaces/reqres-user.interface';
 import { firstValueFrom } from 'rxjs';
@@ -102,5 +102,16 @@ export class UsersService {
       total,
       totalPages,
     };
+  }
+
+  async getRealEmail(id: number): Promise<string | null> {
+    const allUsers = await this.getAllUsers();
+    const user = allUsers.find((user) => user.id === id);
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    return user.email;
   }
 }
