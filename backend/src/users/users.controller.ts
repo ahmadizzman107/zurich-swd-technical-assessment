@@ -12,9 +12,9 @@ export class UsersController {
   }
 
   @Get(':id/email')
-  async getUserRealEmail(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<string | null> {
-    return this.usersService.getRealEmail(id);
+  async getUserRealEmail(@Param('id', ParseIntPipe) id: number) {
+    const email = await this.usersService.getRealEmail(id);
+
+    return { email };
   }
 }
