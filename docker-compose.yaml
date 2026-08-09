@@ -4,16 +4,19 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - BACKEND_URL=http://localhost:4000
     depends_on:
       - backend
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "4000:4000"
+      - '4000:4000'
     environment:
       - REQRES_BASE_URL=https://reqres.in/api
+      - REQRES_API_KEY=free_user_3Hfxn98zoU0dPK4ffrrn6NBkVcR
+      - FRONTEND_URL=http://localhost:3000
+      - PORT=4000
