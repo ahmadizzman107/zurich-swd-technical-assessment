@@ -18,7 +18,7 @@ function UserCard({ user }: { user: PublicUser }) {
     if (!realEmail) {
       setLoading(true);
       const res = await fetch(`${API_URL}/users/${user.id}/email`);
-      const email = await res.text();
+      const { email } = await res.json();
 
       setRealEmail(email);
       setLoading(false);
