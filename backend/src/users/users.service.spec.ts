@@ -183,4 +183,94 @@ describe('UsersService', () => {
       expect(httpService.get).toHaveBeenCalledTimes(1); // total_pages=1, so no extra calls
     });
   });
+
+  describe('getPaginatedUsers', () => {
+    let service: UsersService;
+    let httpService: { get: jest.Mock };
+
+    const buildReqresResponse = (
+      page: number,
+      total_pages: number,
+      data: ReqresResponse['data'],
+    ): AxiosResponse<ReqresResponse> => ({
+      data: { page, per_page: 6, total: total_pages * 6, total_pages, data },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as any,
+    });
+
+    beforeEach(async () => {
+      httpService = { get: jest.fn() };
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          UsersService,
+          { provide: HttpService, useValue: httpService },
+        ],
+      }).compile();
+      service = module.get<UsersService>(UsersService);
+
+      httpService.get.mockReturnValueOnce(
+        of(
+          buildReqresResponse(1, 1, [
+            {
+              id: 1,
+              email: 'a@x.com',
+              first_name: 'George',
+              last_name: 'A',
+              avatar: '',
+            },
+            {
+              id: 2,
+              email: 'b@x.com',
+              first_name: 'Gina',
+              last_name: 'B',
+              avatar: '',
+            },
+            {
+              id: 3,
+              email: 'c@x.com',
+              first_name: 'Greg',
+              last_name: 'C',
+              avatar: '',
+            },
+            {
+              id: 4,
+              email: 'd@x.com',
+              first_name: 'Gary',
+              last_name: 'D',
+              avatar: '',
+            },
+            {
+              id: 5,
+              email: 'e@x.com',
+              first_name: 'Gwen',
+              last_name: 'E',
+              avatar: '',
+            },
+          ]),
+        ),
+      );
+    });
+
+    it('should slice the filtered set into the requested page/limit', async () => {
+      const result = await service.getPaginatedUsers(1, 2);
+
+      expect(result.data).toHaveLength(2);
+      expect(result.data.map((u) => u.id)).toEqual([1, 2]);
+      expect(result.total).toBe(5);
+      expect(result.totalPages).toBe(3);
+    });
+
+    it('should return the remainder on the last page', async () => {
+      const result = await service.getPaginatedUsers(3, 2);
+      expect(result.data.map((u) => u.id)).toEqual([5]);
+    });
+
+    it('should return an empty array for an out-of-range page without erroring', async () => {
+      const result = await service.getPaginatedUsers(99, 2);
+      expect(result.data).toEqual([]);
+      expect(result.totalPages).toBe(3);
+    });
+  });
 });
