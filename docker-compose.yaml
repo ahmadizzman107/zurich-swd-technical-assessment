@@ -23,5 +23,6 @@ services:
       - REQRES_BASE_URL=https://reqres.in/api
       - REQRES_API_KEY=free_user_3Hfxn98zoU0dPK4ffrrn6NBkVcR
       - REQRES_AUTH_TOKEN=reqres_9c57552fe659463d9280c76ada28908e
+      - NEXTAUTH_SECRET=9OU2+hILwzravEqYmQUIt8YZkoERqPrxVTP77Oj1VrA=
       - FRONTEND_URL=http://localhost:3000
       - PORT=4000
