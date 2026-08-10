@@ -4,6 +4,7 @@ const API_URL = process.env.BACKEND_URL || 'http://localhost:4000';
 
 import React, { useState } from 'react';
 import { PublicUser } from '../store/usersApi';
+import { getSession } from 'next-auth/react';
 
 function UserCard({ user }: { user: PublicUser }) {
   const [revealed, setRevealed] = useState(false);
@@ -17,7 +18,15 @@ function UserCard({ user }: { user: PublicUser }) {
     }
     if (!realEmail) {
       setLoading(true);
-      const res = await fetch(`${API_URL}/users/${user.id}/email`);
+      const session = await getSession();
+      const res = await fetch(`${API_URL}/users/${user.id}/email`, {
+        headers: session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {},
+      });
+
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
       const { email } = await res.json();
 
       setRealEmail(email);

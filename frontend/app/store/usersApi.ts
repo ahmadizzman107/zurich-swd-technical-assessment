@@ -1,4 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { getSession } from 'next-auth/react';
 
 export interface PublicUser {
   id: number;
@@ -20,6 +21,14 @@ export const usersApi = createApi({
   reducerPath: 'usersApi',
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.BACKEND_URL || 'http://localhost:4000',
+    async prepareHeaders(headers) {
+      const session = await getSession();
+      if (session?.accessToken) {
+        headers.set('Authorization', `Bearer ${session.accessToken}`);
+      }
+
+      return headers;
+    },
   }),
   endpoints: (builder) => ({
     getUsers: builder.query<PaginatedUsers, { page: number; limit?: number }>({
