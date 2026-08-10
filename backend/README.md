@@ -69,6 +69,10 @@ npm run test:cov
 npm run lint
 ```
 
+## Health Check
+
+`GET /health` returns `{ status: 'ok', uptime, timestamp }` with a 200 status — no upstream dependency checks, so it stays healthy even if reqres.in is having issues. Used as the container's Docker healthcheck; see `docker-compose.yaml` at the repo root, where the frontend waits for this to go healthy before starting.
+
 ## Docker
 
 Build and run the production image:
@@ -76,6 +80,12 @@ Build and run the production image:
 ```bash
 docker build -t backend .
 docker run -p 4000:4000 --env-file .env backend
+```
+
+The image's `HEALTHCHECK` polls `/health` every 30s. Check its status with:
+
+```bash
+docker inspect --format='{{json .State.Health}}' <container>
 ```
 
 ## Resources
