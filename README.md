@@ -23,8 +23,6 @@ Browser (Next.js) ──▶ NestJS BFF ──▶ reqres.in
 
 The frontend never calls reqres.in directly. All business logic — pagination aggregation across reqres.in's pages, the "first name starts with G or last name starts with W" filter, email masking, and auth verification — lives in the NestJS layer. This keeps business logic out of the browser bundle and gives the "masked email" feature a real security boundary rather than just UI hiding.
 
-See `architecture-and-dev-strategy.md` for the full design rationale.
-
 ## Project Structure
 
 ```
@@ -35,14 +33,16 @@ See `architecture-and-dev-strategy.md` for the full design rationale.
 │   ├── store/
 │   ├── lib/
 │   ├── Dockerfile
-│   └── .dockerignore
+│   ├── .env.example
+│   └── README.md
 ├── backend/
 │   ├── src/
 │   │   ├── auth/
 │   │   └── users/
 │   ├── Dockerfile
-│   └── .dockerignore
-├── docker-compose.yml
+│   ├── .env.example
+│   └── README.md
+├── docker-compose.yaml
 └── README.md
 ```
 
@@ -51,21 +51,20 @@ See `architecture-and-dev-strategy.md` for the full design rationale.
 - Node.js 20+
 - Docker & Docker Compose
 - A Google OAuth2 Client ID/Secret ([Google Cloud Console](https://console.cloud.google.com/apis/credentials)) with `http://localhost:3000/api/auth/callback/google` set as an authorized redirect URI
+- A [reqres.in](https://reqres.in) API key
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` in the project root and fill in:
+Each service manages its own `.env`, copied from that service's `.env.example`:
 
-```
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=          # generate with: openssl rand -base64 32
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-JWT_SECRET=               # shared secret used by the backend to validate tokens
-REQRES_BASE_URL=https://reqres.in/api
+```bash
+cp frontend/.env.example frontend/.env
+cp backend/.env.example backend/.env
 ```
 
-`NEXTAUTH_SECRET` and `JWT_SECRET` can be the same value for this project's scope, since both are just used to sign/verify the session token between the two services.
+See [frontend/README.md](frontend/README.md#environment-variables) and [backend/README.md](backend/README.md#environment-variables) for the full list of variables each service needs.
+
+The one thing that spans both files: `NEXTAUTH_SECRET` must be set to the **same value** in `frontend/.env` and `backend/.env` — the frontend signs the session JWT with it via NextAuth, and the backend verifies that JWT with it.
 
 ## Running with Docker (recommended)
 
@@ -76,7 +75,9 @@ docker compose up --build
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - Backend: [http://localhost:4000](http://localhost:4000)
 
-This builds both services from their Dockerfiles and wires them together on the same Docker network, so the frontend can reach the backend at `http://backend:4000` internally.
+`docker-compose.yaml` loads each service's environment straight from `frontend/.env` and `backend/.env` (via `env_file`) — no separate root `.env` is needed.
+
+> **Note:** the browser — not the frontend container — is what calls the backend (`NEXT_PUBLIC_BACKEND_URL` is read from client components, hence the `NEXT_PUBLIC_` prefix so Next.js inlines it into the browser bundle), so `http://localhost:4000` resolves correctly on the host machine regardless of whether the backend is running locally or in its own container with port `4000` published.
 
 ## Running Locally (without Docker)
 
