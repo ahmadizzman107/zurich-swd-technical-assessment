@@ -12,7 +12,7 @@ export interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
-    const secret = process.env.NEXTHAUTH_SECRET;
+    const secret = process.env.NEXTAUTH_SECRET;
 
     if (!secret) {
       throw new Error('NEXTAUTH_SECRET is not set — check your .env file');
