@@ -20,7 +20,7 @@ export interface PaginatedUsers {
 export const usersApi = createApi({
   reducerPath: 'usersApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.BACKEND_URL || 'http://localhost:4000',
+    baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000',
     async prepareHeaders(headers) {
       const session = await getSession();
       if (session?.accessToken) {

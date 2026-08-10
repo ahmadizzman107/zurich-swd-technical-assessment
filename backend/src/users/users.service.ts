@@ -1,7 +1,14 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  GatewayTimeoutException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ReqresResponse, ReqresUser } from './interfaces/reqres-user.interface';
 import { firstValueFrom } from 'rxjs';
+import { AxiosError } from 'axios';
 
 export interface PublicUser {
   id: number;
@@ -19,19 +26,44 @@ export interface PaginatedUsers {
   totalPages: number;
 }
 
+export const DEFAULT_USERS_CACHE_TTL_MS = 60_000;
+
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  private readonly cacheTtlMs =
+    Number(process.env.USERS_CACHE_TTL_MS) || DEFAULT_USERS_CACHE_TTL_MS;
+
+  private cache: { data: ReqresUser[]; expiresAt: number } | null = null;
+  private pendingFetch: Promise<ReqresUser[]> | null = null;
 
   constructor(private readonly httpService: HttpService) {}
 
   // This method calls the api
   private async fetchUsersPage(page: number): Promise<ReqresResponse> {
-    const response = await firstValueFrom(
-      this.httpService.get<ReqresResponse>('/users', { params: { page } }),
-    );
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<ReqresResponse>('/users', { params: { page } }),
+      );
 
-    return response.data;
+      return response.data;
+    } catch (error) {
+      const axiosError = error as AxiosError;
+
+      if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
+        this.logger.error(`Reqres API timed out fetching page ${page}`);
+        throw new GatewayTimeoutException(
+          'Timed out fetching users from the upstream API',
+        );
+      }
+
+      const status = axiosError.response?.status;
+      this.logger.error(
+        `Reqres API request failed fetching page ${page}${status ? ` with status ${status}` : ''}`,
+        axiosError.stack,
+      );
+      throw new BadGatewayException('Failed to fetch users from the upstream API');
+    }
   }
 
   private matchesFilter(user: ReqresUser): boolean {
@@ -59,6 +91,20 @@ export class UsersService {
   }
 
   private async getAllUsers(): Promise<ReqresUser[]> {
+    if (this.cache && this.cache.expiresAt > Date.now()) {
+      return this.cache.data;
+    }
+
+    if (!this.pendingFetch) {
+      this.pendingFetch = this.fetchAllUsers().finally(() => {
+        this.pendingFetch = null;
+      });
+    }
+
+    return this.pendingFetch;
+  }
+
+  private async fetchAllUsers(): Promise<ReqresUser[]> {
     const firstPage = await this.fetchUsersPage(1);
     const results: ReqresUser[] = [...firstPage.data];
 
@@ -75,6 +121,9 @@ export class UsersService {
     this.logger.log(
       `Fetched ${results.length} users across ${firstPage.total_pages} pages from Reqres API.`,
     );
+
+    this.cache = { data: results, expiresAt: Date.now() + this.cacheTtlMs };
+
     return results;
   }
 

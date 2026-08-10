@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersService } from './users.service';
-import AxiosResponse from 'axios';
+import { BadGatewayException, GatewayTimeoutException } from '@nestjs/common';
+import { DEFAULT_USERS_CACHE_TTL_MS, UsersService } from './users.service';
+import { AxiosError, type AxiosResponse } from 'axios';
 import { HttpService } from '@nestjs/axios';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { ReqresResponse } from './interfaces/reqres-user.interface';
 
 describe('UsersService', () => {
@@ -181,6 +182,135 @@ describe('UsersService', () => {
       const result = await service.getFilteredUsers();
       expect(result).toEqual([]);
       expect(httpService.get).toHaveBeenCalledTimes(1); // total_pages=1, so no extra calls
+    });
+  });
+
+  describe('upstream API failures', () => {
+    let service: UsersService;
+    let httpService: { get: jest.Mock };
+
+    beforeEach(async () => {
+      httpService = { get: jest.fn() };
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          UsersService,
+          { provide: HttpService, useValue: httpService },
+        ],
+      }).compile();
+
+      service = module.get<UsersService>(UsersService);
+    });
+
+    it('throws a GatewayTimeoutException when the Reqres API times out', async () => {
+      const timeoutError = Object.assign(new Error('timeout'), {
+        code: 'ETIMEDOUT',
+      }) as AxiosError;
+      httpService.get.mockReturnValueOnce(throwError(() => timeoutError));
+
+      await expect(service.getFilteredUsers()).rejects.toBeInstanceOf(
+        GatewayTimeoutException,
+      );
+    });
+
+    it('throws a BadGatewayException when the Reqres API returns a 401 (e.g. rotated key)', async () => {
+      const unauthorizedError = Object.assign(new Error('unauthorized'), {
+        response: { status: 401 },
+      }) as AxiosError;
+      httpService.get.mockReturnValueOnce(throwError(() => unauthorizedError));
+
+      await expect(service.getFilteredUsers()).rejects.toBeInstanceOf(
+        BadGatewayException,
+      );
+    });
+
+    it('throws a BadGatewayException when the Reqres API returns a 5xx', async () => {
+      const serverError = Object.assign(new Error('server error'), {
+        response: { status: 503 },
+      }) as AxiosError;
+      httpService.get.mockReturnValueOnce(throwError(() => serverError));
+
+      await expect(service.getFilteredUsers()).rejects.toBeInstanceOf(
+        BadGatewayException,
+      );
+    });
+  });
+
+  describe('caching', () => {
+    let service: UsersService;
+    let httpService: { get: jest.Mock };
+
+    const buildReqresResponse = (
+      page: number,
+      total_pages: number,
+      data: ReqresResponse['data'],
+    ): AxiosResponse<ReqresResponse> => ({
+      data: { page, per_page: 6, total: total_pages * 6, total_pages, data },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as any,
+    });
+
+    const georgeResponse = () =>
+      of(
+        buildReqresResponse(1, 1, [
+          {
+            id: 1,
+            email: 'a@x.com',
+            first_name: 'George',
+            last_name: 'A',
+            avatar: '',
+          },
+        ]),
+      );
+
+    beforeEach(async () => {
+      httpService = { get: jest.fn() };
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          UsersService,
+          { provide: HttpService, useValue: httpService },
+        ],
+      }).compile();
+
+      service = module.get<UsersService>(UsersService);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('reuses the cached result for a second call instead of refetching', async () => {
+      httpService.get.mockReturnValue(georgeResponse());
+
+      await service.getFilteredUsers();
+      await service.getFilteredUsers();
+
+      expect(httpService.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('dedupes concurrent in-flight requests into a single upstream fetch', async () => {
+      httpService.get.mockReturnValue(georgeResponse());
+
+      await Promise.all([
+        service.getFilteredUsers(),
+        service.getFilteredUsers(),
+      ]);
+
+      expect(httpService.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('refetches once the cache TTL has elapsed', async () => {
+      jest.useFakeTimers();
+      httpService.get.mockReturnValue(georgeResponse());
+
+      await service.getFilteredUsers();
+      jest.advanceTimersByTime(DEFAULT_USERS_CACHE_TTL_MS + 1);
+      await service.getFilteredUsers();
+
+      expect(httpService.get).toHaveBeenCalledTimes(2);
     });
   });
 
