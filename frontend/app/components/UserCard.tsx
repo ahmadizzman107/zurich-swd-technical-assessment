@@ -1,6 +1,6 @@
 'use client';
 
-const API_URL = process.env.BACKEND_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
 import React, { useState } from 'react';
 import { PublicUser } from '../store/usersApi';
