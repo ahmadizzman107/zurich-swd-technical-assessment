@@ -6,6 +6,10 @@ services:
     ports:
       - '3000:3000'
     environment:
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=9OU2+hILwzravEqYmQUIt8YZkoERqPrxVTP77Oj1VrA=
+      - GOOGLE_CLIENT_ID=1033775989670-7nlk1q9vk8716knai279b7rpm2r3pn6a.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
       - BACKEND_URL=http://localhost:4000
     depends_on:
       - backend
@@ -18,5 +22,6 @@ services:
     environment:
       - REQRES_BASE_URL=https://reqres.in/api
       - REQRES_API_KEY=free_user_3Hfxn98zoU0dPK4ffrrn6NBkVcR
+      - REQRES_AUTH_TOKEN=reqres_9c57552fe659463d9280c76ada28908e
       - FRONTEND_URL=http://localhost:3000
       - PORT=4000
