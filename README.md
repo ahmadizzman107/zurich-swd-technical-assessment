@@ -77,6 +77,8 @@ docker compose up --build
 
 `docker-compose.yaml` loads each service's environment straight from `frontend/.env` and `backend/.env` (via `env_file`) — no separate root `.env` is needed.
 
+The backend exposes a `GET /health` check; Compose polls it and the frontend only starts once the backend reports healthy (`depends_on: backend: condition: service_healthy`), rather than just once its container has started.
+
 > **Note:** the browser — not the frontend container — is what calls the backend (`NEXT_PUBLIC_BACKEND_URL` is read from client components, hence the `NEXT_PUBLIC_` prefix so Next.js inlines it into the browser bundle), so `http://localhost:4000` resolves correctly on the host machine regardless of whether the backend is running locally or in its own container with port `4000` published.
 
 ## Running Locally (without Docker)
