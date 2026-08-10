@@ -3,6 +3,7 @@ import { HttpModule } from '@nestjs/axios';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import 'dotenv/config';
+import { AuthModule } from '../auth/auth.module';
 if (!process.env.REQRES_API_KEY) {
   throw new Error('REQRES_API_KEY is not set — check your .env file');
 }
@@ -14,6 +15,7 @@ if (!process.env.REQRES_API_KEY) {
       headers: { 'x-api-key': process.env.REQRES_API_KEY },
       timeout: 5000,
     }),
+    AuthModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],
