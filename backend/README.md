@@ -29,6 +29,7 @@ cp .env.example .env
 | `NEXTAUTH_SECRET` | Secret used to verify the JWT issued by the frontend's NextAuth. Must match the frontend's `NEXTAUTH_SECRET` exactly. |
 | `FRONTEND_URL` | Origin allowed by CORS. Should match the frontend's `NEXTAUTH_URL`. `http://localhost:3000` in development. |
 | `PORT` | Port this service listens on. `4000` by default. |
+| `USERS_CACHE_TTL_MS` | How long the aggregated reqres.in user list is cached in memory, in milliseconds. `60000` by default. |
 
 ## Project setup
 

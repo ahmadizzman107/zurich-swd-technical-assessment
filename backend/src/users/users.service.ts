@@ -26,9 +26,16 @@ export interface PaginatedUsers {
   totalPages: number;
 }
 
+export const DEFAULT_USERS_CACHE_TTL_MS = 60_000;
+
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  private readonly cacheTtlMs =
+    Number(process.env.USERS_CACHE_TTL_MS) || DEFAULT_USERS_CACHE_TTL_MS;
+
+  private cache: { data: ReqresUser[]; expiresAt: number } | null = null;
+  private pendingFetch: Promise<ReqresUser[]> | null = null;
 
   constructor(private readonly httpService: HttpService) {}
 
@@ -84,6 +91,20 @@ export class UsersService {
   }
 
   private async getAllUsers(): Promise<ReqresUser[]> {
+    if (this.cache && this.cache.expiresAt > Date.now()) {
+      return this.cache.data;
+    }
+
+    if (!this.pendingFetch) {
+      this.pendingFetch = this.fetchAllUsers().finally(() => {
+        this.pendingFetch = null;
+      });
+    }
+
+    return this.pendingFetch;
+  }
+
+  private async fetchAllUsers(): Promise<ReqresUser[]> {
     const firstPage = await this.fetchUsersPage(1);
     const results: ReqresUser[] = [...firstPage.data];
 
@@ -100,6 +121,9 @@ export class UsersService {
     this.logger.log(
       `Fetched ${results.length} users across ${firstPage.total_pages} pages from Reqres API.`,
     );
+
+    this.cache = { data: results, expiresAt: Date.now() + this.cacheTtlMs };
+
     return results;
   }
 
