@@ -1,7 +1,14 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  GatewayTimeoutException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ReqresResponse, ReqresUser } from './interfaces/reqres-user.interface';
 import { firstValueFrom } from 'rxjs';
+import { AxiosError } from 'axios';
 
 export interface PublicUser {
   id: number;
@@ -27,11 +34,29 @@ export class UsersService {
 
   // This method calls the api
   private async fetchUsersPage(page: number): Promise<ReqresResponse> {
-    const response = await firstValueFrom(
-      this.httpService.get<ReqresResponse>('/users', { params: { page } }),
-    );
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<ReqresResponse>('/users', { params: { page } }),
+      );
 
-    return response.data;
+      return response.data;
+    } catch (error) {
+      const axiosError = error as AxiosError;
+
+      if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
+        this.logger.error(`Reqres API timed out fetching page ${page}`);
+        throw new GatewayTimeoutException(
+          'Timed out fetching users from the upstream API',
+        );
+      }
+
+      const status = axiosError.response?.status;
+      this.logger.error(
+        `Reqres API request failed fetching page ${page}${status ? ` with status ${status}` : ''}`,
+        axiosError.stack,
+      );
+      throw new BadGatewayException('Failed to fetch users from the upstream API');
+    }
   }
 
   private matchesFilter(user: ReqresUser): boolean {
